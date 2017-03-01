@@ -12,6 +12,7 @@ const {
   StyleSheet,
   InteractionManager,
   Platform,
+  I18nManager,
 } = ReactNative;
 const TimerMixin = require('react-timer-mixin');
 
@@ -87,7 +88,7 @@ const ScrollableTabView = React.createClass({
   },
 
   goToPage(pageNumber) {
-    const offset = pageNumber * this.state.containerWidth;
+    const offset = this._getContentOffset(pageNumber);
     if (this.scrollView) {
       this.scrollView.scrollTo({x: offset, y: 0, animated: !this.props.scrollWithoutAnimation, });
     }
@@ -143,14 +144,16 @@ const ScrollableTabView = React.createClass({
   renderScrollableContent() {
     const scenes = this._composeScenes();
     return <ScrollView
+      style={{ flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row' }}
       horizontal
       pagingEnabled
       automaticallyAdjustContentInsets={false}
-      contentOffset={{ x: this.props.initialPage * this.state.containerWidth, }}
+      contentOffset={{ x: this._getContentOffset(this.props.initialPage)}}
       ref={(scrollView) => { this.scrollView = scrollView; }}
       onScroll={(e) => {
         const offsetX = e.nativeEvent.contentOffset.x;
-        this._updateScrollValue(offsetX / this.state.containerWidth);
+        const scrollValue = this._getScrollValue(offsetX);
+        this._updateScrollValue(scrollValue);
       }}
       onMomentumScrollBegin={this._onMomentumScrollBeginAndEnd}
       onMomentumScrollEnd={this._onMomentumScrollBeginAndEnd}
@@ -180,9 +183,25 @@ const ScrollableTabView = React.createClass({
     });
   },
 
+  _getContentOffset(pageNumber) {
+    if (I18nManager.isRTL) { 
+      const RTLPage = (this.props.children.length - 1) - pageNumber;
+      return RTLPage  * this.state.containerWidth;
+    }
+    return pageNumber * this.state.containerWidth;
+  },
+
+  _getScrollValue(offsetX) { 
+    if (I18nManager.isRTL) {
+      const RTLOffset = ((this.props.children.length - 1) * this.state.containerWidth) - offsetX;   
+      return  RTLOffset / this.state.containerWidth;  
+    }
+    return offsetX / this.state.containerWidth;
+  },
+
   _onMomentumScrollBeginAndEnd(e) {
     const offsetX = e.nativeEvent.contentOffset.x;
-    const page = Math.round(offsetX / this.state.containerWidth);
+    const page = Math.round(this._getScrollValue(offsetX));
     if (this.state.currentPage !== page) {
       this._updateSelectedPage(page);
     }
